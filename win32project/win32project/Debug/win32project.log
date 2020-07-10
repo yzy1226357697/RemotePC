@@ -1,0 +1,17 @@
+﻿生成启动时间为 2020-07-10 学无止境 11:40:02。
+     1>项目“D:\暑假学习\RemotePC\win32project\win32project\win32project.vcxproj”在节点 2 上(Build 个目标)。
+     1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(357,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
+     1>ClCompile:
+         F:\vs2013\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _WINDOWS /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\win32project.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt win32project.cpp
+         win32project.cpp
+       Link:
+         F:\vs2013\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"..\..\..\RemotePCS\Debug\win32project.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"..\..\..\RemotePCS\Debug\win32project.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"..\..\..\RemotePCS\Debug\win32project.lib" /MACHINE:X86 Debug\win32project.res
+         Debug\stdafx.obj
+         Debug\win32project.obj
+         Debug\work.obj
+         win32project.vcxproj -> D:\暑假学习\RemotePC\win32project\win32project\..\..\..\RemotePCS\Debug\win32project.exe
+     1>已完成生成项目“D:\暑假学习\RemotePC\win32project\win32project\win32project.vcxproj”(Build 个目标)的操作。
+
+生成成功。
+
+已用时间 00:00:03.80
