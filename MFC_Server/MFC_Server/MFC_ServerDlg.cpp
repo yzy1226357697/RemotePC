@@ -6,12 +6,69 @@
 #include "MFC_Server.h"
 #include "MFC_ServerDlg.h"
 #include "afxdialogex.h"
+#include "..\..\PackHead.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 
+//发送头
+BOOL sendData(SOCKET s, LPCVOID data, DWORD len) {
+
+	if (s == INVALID_SOCKET)
+		return FALSE;
+	int countlen = 0;//发送的总长
+	while (countlen < len) {
+		int n = send(s, ((char*)data) + countlen, len - countlen, 0);//单次发送的长度
+		if (n <= 0)
+			return FALSE;
+		else {
+			countlen += n;
+		}
+	}
+	return TRUE;
+}
+
+BOOL sendData(SOCKET s, DWORD code, LPCVOID data, DWORD len) {
+	PackHeader PH;
+	PH.type = code;
+	PH.length = len;
+	if (s == INVALID_SOCKET || data == NULL || len == 0)
+		return FALSE;
+	int countlen = 0;//发送的总长
+	while (countlen < len) {
+		int n = send(s, ((char*)data) + countlen, len - countlen, 0);//单次发送的长度
+		if (n <= 0)
+			return FALSE;
+		else {
+			countlen += n;
+		}
+	}
+	return TRUE;
+}
+
+
+
+
+
+BOOL recvData(SOCKET s, LPCVOID data, DWORD len) {
+
+	if (s == INVALID_SOCKET || data == NULL || len == 0)
+		return FALSE;
+
+	int countlen = 0;//接受的总长
+
+	while (countlen < len) {
+		int n = recv(s, ((char*)data) + countlen, len - countlen, 0);//单次接受的长度
+		if (n <= 0)
+			return FALSE;
+		else {
+			countlen += n;
+		}
+	}
+	return TRUE;
+}
 
 
 
@@ -66,6 +123,8 @@ BEGIN_MESSAGE_MAP(CMFC_ServerDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_NOTIFY(NM_RCLICK, IDC_LIST1, &CMFC_ServerDlg::OnNMRClickList1)
+	ON_COMMAND(IDM_SCREEN, &CMFC_ServerDlg::OnScreen)
 END_MESSAGE_MAP()
 
 
@@ -89,9 +148,30 @@ std::wstring AsciiToUnicode(const std::string& str)
 }
 
 
+VOID CMFC_ServerDlg::sendScreentcmd() {
+	PackHeader PH;
+	
+	PH.type = STOC_SCREENT;
+	PH.length = 0;
+	SOCKET client = m_list.GetItemData(m_list.GetSelectionMark());//获取与行关联的SOCKET
+
+	sendData(client, &PH, sizeof(PackHeader));
+	{
+		std::lock_guard<std::mutex> lg(m_Acceptmutex);
+		if (m_map[client]->pscreen == NULL) {
+			m_map[client]->pscreen = new CscreenDLG;
+			m_map[client]->pscreen->Create(IDD_CSCREENDLG, this);
+			m_map[client]->pscreen->ShowWindow(SW_SHOWNORMAL);
+		}
+	}
+
+
+
+}
 
 //多线程等待用户连接的回调
-static DWORD _stdcall CallBackAccept(LPVOID p) {
+ DWORD _stdcall CMFC_ServerDlg::CallBackAccept(LPVOID p) {
+	 
 	CMFC_ServerDlg* pthis = (CMFC_ServerDlg*)p;
 	while (TRUE) {
 		//客户端的addr
@@ -105,6 +185,7 @@ static DWORD _stdcall CallBackAccept(LPVOID p) {
 		pSession->clientSock = clientScok;
 		pSession->addr = addr;
 		pSession->dwLastTickout = GetTickCount();
+		pSession->pscreen = NULL;
 		{
 			//在map操作的时候要加上互斥体，以防多线程同一时间操作一个map元素
 			std::lock_guard<std::mutex> lg(pthis->m_Acceptmutex);
@@ -116,19 +197,52 @@ static DWORD _stdcall CallBackAccept(LPVOID p) {
 		std::wstring wstr = AsciiToUnicode(inet_ntoa(addr.sin_addr));
 		
 		_swprintf(addrbuf, _T("%s:%d"), wstr.c_str(), ntohs( addr.sin_port));
-		pthis->m_list.InsertItem(pthis->m_map.size(), addrbuf);
-		
+		int index = pthis->m_list.InsertItem(pthis->m_map.size(), addrbuf);
+		pthis->m_list.SetItemData(index, clientScok);
 
 		std::thread thd([&]() {
 		
 			char data[100] = { 0 };
-			char buf[256] = { 0 };
+			char* buf;
+			PackHeader PH;
+
 			sockaddr_in formaddr = addr;
 			formaddr.sin_port = ntohs(addr.sin_port);
-			int n =recv(clientScok, buf, sizeof(buf)-1, 0);
-			sprintf(data, "%s:%d", inet_ntoa(formaddr.sin_addr), formaddr.sin_port);
-			MessageBoxA(0, data, 0, 0);
-			MessageBoxA(0, buf, 0, 0);
+			while (true) {
+
+			
+			recvData(clientScok, &PH, sizeof(PackHeader));//获取到头
+			if (PH.length>0)
+				 buf = new char[PH.length];
+			switch (PH.type) {
+			case CTOS_SCREENT:{//获取到屏幕数据后的处理程序
+								  
+								  recvData(clientScok, buf, PH.length);//获取数据
+								  if (pSession->pscreen != NULL) {
+									  /*if (!(pSession->pscreen->IsWindowVisible())) {
+										 // pSession->pscreen->ShowWindow(SW_SHOWNORMAL);
+									  }*/
+									  
+									  pSession->pscreen->showdata(buf, PH.length);
+									  PH.type = STOC_SCREENT;
+									  PH.length = 0;
+									  if (pSession->pscreen->IsWindowVisible()) {
+										  sendData(clientScok, &PH, sizeof(PackHeader));
+									  } else {
+										  pSession->pscreen = NULL;
+									  }
+										
+									  
+								  }
+								  
+
+			}break;
+			default:
+				break;
+			}
+			//释放缓冲区
+			delete[]buf;
+			}
 
 		});
 		thd.detach();
@@ -211,7 +325,7 @@ BOOL CMFC_ServerDlg::OnInitDialog()
 	m_list.InsertColumn(0, TEXT("IP:Port"), LVCFMT_LEFT, 120);//增加一列，左对齐，120px
 	m_list.InsertColumn(1, TEXT("system"), LVCFMT_LEFT, 120);//增加一列，左对齐，120px
 	m_list.InsertColumn(2, TEXT("位置"), LVCFMT_LEFT, 120);//增加一列，左对齐，120px
-
+	
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -265,3 +379,25 @@ HCURSOR CMFC_ServerDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+
+
+void CMFC_ServerDlg::OnNMRClickList1(NMHDR *pNMHDR, LRESULT *pResult) {
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	// TODO:  在此添加控件通知处理程序代码
+	if (m_list.GetNextItem(-1, LVIS_SELECTED) == -1)
+		return;
+	CPoint point;
+	CMenu menu;
+	GetCursorPos(&point);
+	menu.LoadMenuW(IDR_MENU1);
+	CMenu* psubMenu = menu.GetSubMenu(0);
+	psubMenu->TrackPopupMenu(TPM_LEFTALIGN, point.x, point.y, this);
+
+	*pResult = 0;
+}
+
+void CMFC_ServerDlg::OnScreen() {
+	sendScreentcmd();
+	//AfxMessageBox(_T("1"));
+	// TODO:  在此添加命令处理程序代码
+}

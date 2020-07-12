@@ -8,13 +8,16 @@
 #include <thread>
 #include <mutex>
 #include <string>
+#include "CscreenDLG.h"
 
 struct s_MySession {
 	SOCKET clientSock;
 	sockaddr_in addr;
 	DWORD dwLastTickout;//最后活跃时间，心跳包
+	CscreenDLG* pscreen;
+
 };
-DWORD _stdcall CallBackAccept(LPVOID p);
+//DWORD _stdcall CallBackAccept(LPVOID p);
 
 // CMFC_ServerDlg 对话框
 class CMFC_ServerDlg : public CDialogEx
@@ -29,9 +32,11 @@ public:
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
 
-	//static DWORD _stdcall CallBackAccept(LPVOID p);
+	
+	static DWORD _stdcall CallBackAccept(LPVOID p);
 
 	BOOL InitSock();
+	
 
 
 // 实现
@@ -52,4 +57,8 @@ public:
 	std::map<SOCKET, s_MySession*> m_map;
 	std::mutex m_Acceptmutex;
 
+	afx_msg void OnNMRClickList1(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnScreen();
+
+	VOID sendScreentcmd();
 };

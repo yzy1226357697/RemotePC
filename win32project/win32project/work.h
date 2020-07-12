@@ -15,6 +15,6 @@ BOOL InitPipe(_Out_ HANDLE* myin, _Out_ HANDLE* myout, _Out_ DWORD* prcessid);
 //参数：管道，写管道，socket句柄，命令指针
 VOID cmd(HANDLE myIn, HANDLE myOut, SOCKET s, char* lpStr);
 
-
+VOID GetScreen(SOCKET);
 
 DWORD _stdcall proceThread(LPVOID p);

