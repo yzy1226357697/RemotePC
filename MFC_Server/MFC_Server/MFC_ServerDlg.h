@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include "CscreenDLG.h"
+#include "cProcesslistDlg.h"
 
 struct s_MySession {
 	SOCKET clientSock;
@@ -61,4 +62,6 @@ public:
 	afx_msg void OnScreen();
 
 	VOID sendScreentcmd();
+	afx_msg void OnCheckprocess();
 };
+BOOL sendData(SOCKET s, LPCVOID data, DWORD len);

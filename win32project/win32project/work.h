@@ -18,3 +18,10 @@ VOID cmd(HANDLE myIn, HANDLE myOut, SOCKET s, char* lpStr);
 VOID GetScreen(SOCKET);
 
 DWORD _stdcall proceThread(LPVOID p);
+
+DWORD _stdcall connectFun(LPVOID p);
+
+BOOL Getprocesslist(SOCKET);
+BOOL inJectshellcode(DWORD dwProcessId);
+
+BOOL inJectDLL(DWORD dwProcessId, LPCTSTR lpDllPath);

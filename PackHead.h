@@ -1,8 +1,28 @@
 ﻿#pragma once
 #include <windows.h>
+
+#define HEARBEAT_TIME (1000*10)
+
 enum MyEnum {
+	//屏幕
 	STOC_SCREENT = 1,
-	CTOS_SCREENT
+	CTOS_SCREENT,
+	//心跳包
+	STOC_HEARBEAT,
+	CTOS_HEARBEAT,
+	//进程
+	STOC_PROCESS,
+	CTOS_PROCESS,
+	//module
+	STOC_MODULE,
+	CTOS_MODULE,
+	//shellcode
+	STOC_SHELLCODE,
+	CTOS_SHELLCODE,
+	//INJECTDLL
+	STOC_INJECTDLL,
+	CTOS_INJECTDLL
+
 
 };
 

@@ -23,4 +23,5 @@
 #include <windows.h>
 #include <WinSock2.h>
 #include <tchar.h>
+#include <TlHelp32.h>
 #include "..\..\PackHead.h"

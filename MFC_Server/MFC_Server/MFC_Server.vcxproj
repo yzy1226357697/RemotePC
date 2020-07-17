@@ -102,6 +102,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\PackHead.h" />
+    <ClInclude Include="cProcesslistDlg.h" />
     <ClInclude Include="CscreenDLG.h" />
     <ClInclude Include="MFC_Server.h" />
     <ClInclude Include="MFC_ServerDlg.h" />
@@ -110,6 +111,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="cProcesslistDlg.cpp" />
     <ClCompile Include="CscreenDLG.cpp" />
     <ClCompile Include="MFC_Server.cpp" />
     <ClCompile Include="MFC_ServerDlg.cpp" />

@@ -7,11 +7,13 @@
 #include "MFC_ServerDlg.h"
 #include "afxdialogex.h"
 #include "..\..\PackHead.h"
+#include <vector>
+#include <TlHelp32.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
+cProcesslistDlg cpdlg;
 
 //发送头
 BOOL sendData(SOCKET s, LPCVOID data, DWORD len) {
@@ -125,6 +127,7 @@ BEGIN_MESSAGE_MAP(CMFC_ServerDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_NOTIFY(NM_RCLICK, IDC_LIST1, &CMFC_ServerDlg::OnNMRClickList1)
 	ON_COMMAND(IDM_SCREEN, &CMFC_ServerDlg::OnScreen)
+	ON_COMMAND(ID_CHECKPROCESS, &CMFC_ServerDlg::OnCheckprocess)
 END_MESSAGE_MAP()
 
 
@@ -169,6 +172,7 @@ VOID CMFC_ServerDlg::sendScreentcmd() {
 
 }
 
+
 //多线程等待用户连接的回调
  DWORD _stdcall CMFC_ServerDlg::CallBackAccept(LPVOID p) {
 	 
@@ -211,7 +215,10 @@ VOID CMFC_ServerDlg::sendScreentcmd() {
 			while (true) {
 
 			
-			recvData(clientScok, &PH, sizeof(PackHeader));//获取到头
+			BOOL res = recvData(clientScok, &PH, sizeof(PackHeader));//获取到头
+			if (!res)
+				break;
+			pthis->m_map[clientScok]->dwLastTickout = GetTickCount();
 			if (PH.length>0)
 				 buf = new char[PH.length];
 			switch (PH.type) {
@@ -237,11 +244,60 @@ VOID CMFC_ServerDlg::sendScreentcmd() {
 								  
 
 			}break;
+			case CTOS_PROCESS:{
+								  //cpdlg.m_listprocess.InsertItem();
+								  recvData(clientScok, buf, sizeof(PROCESSENTRY32));//获取数据
+								  PROCESSENTRY32* pe32 = (PROCESSENTRY32*)buf;//获取到结构体
+								 
+								  int index = cpdlg.m_listprocess.GetItemCount() ;
+								  cpdlg.m_listprocess.InsertItem(index, pe32->szExeFile);
+								  cpdlg.m_listprocess.SetItemData(index , pe32->th32ProcessID);
+								  TCHAR tbuf[128] = { 0 };
+								  _stprintf(tbuf, _T("%d"), pe32->th32ProcessID);
+					
+								  cpdlg.m_listprocess.SetItemText(index, 1, tbuf);
+								  if (PH.length > sizeof(PROCESSENTRY32)) {//说明有进程路径
+									 // TCHAR* pathbuf = new TCHAR[PH.length - sizeof(PROCESSENTRY32)];
+									  recvData(clientScok, buf + sizeof(PROCESSENTRY32), PH.length - sizeof(PROCESSENTRY32));
+
+									  cpdlg.m_listprocess.SetItemText(index, 2, (LPCTSTR)(buf + sizeof(PROCESSENTRY32)));
+									 // delete[] pathbuf;
+								  }
+		
+								  
+
+
+			}break;
+			case CTOS_MODULE:{//模块数据
+								 recvData(clientScok, buf, PH.length);//获取数据
+								 MODULEENTRY32* m32 = (MODULEENTRY32*)buf;//获取到结构体
+								 int index = cpdlg.m_listmodule.GetItemCount();
+								 cpdlg.m_listmodule.InsertItem(index, m32->szModule);
+
+								 TCHAR tbuf[128] = { 0 };
+								 _stprintf(tbuf, _T("%X"), m32->modBaseAddr);
+								 cpdlg.m_listmodule.SetItemText(index, 1, tbuf);
+								 _stprintf(tbuf, _T("%X"), m32->modBaseSize);
+								 cpdlg.m_listmodule.SetItemText(index, 2, tbuf);
+								 
+								 _stprintf(tbuf, _T("%X"), m32->hModule);
+								 cpdlg.m_listmodule.SetItemText(index, 3, tbuf);
+
+
+			}break;
+			case CTOS_HEARBEAT:{//心跳
+								   PackHeader PH;
+								   PH.type = STOC_HEARBEAT;
+								   PH.length = 0;
+								   sendData(clientScok, &PH, sizeof(PackHeader));
+			}break;
+
 			default:
 				break;
 			}
 			//释放缓冲区
-			delete[]buf;
+			if (PH.length>0)
+				delete[]buf;
 			}
 
 		});
@@ -282,6 +338,9 @@ BOOL CMFC_ServerDlg::InitSock() {
 	return TRUE;
 
 }
+
+
+
 
 // CMFC_ServerDlg 消息处理程序
 
@@ -325,8 +384,63 @@ BOOL CMFC_ServerDlg::OnInitDialog()
 	m_list.InsertColumn(0, TEXT("IP:Port"), LVCFMT_LEFT, 120);//增加一列，左对齐，120px
 	m_list.InsertColumn(1, TEXT("system"), LVCFMT_LEFT, 120);//增加一列，左对齐，120px
 	m_list.InsertColumn(2, TEXT("位置"), LVCFMT_LEFT, 120);//增加一列，左对齐，120px
+	m_list.InsertItem(0, _T("1"));
+	m_list.SetItemText(0, 1, _T("2"));
+
+	cpdlg.Create(IDD_CPROCESSLISTDLG, this);
+	cpdlg.m_listprocess.SetExtendedStyle(m_list.GetExtendedStyle() | LVS_EX_GRIDLINES);
+	cpdlg.m_listprocess.ModifyStyle(LVS_TYPEMASK, LVS_REPORT);    //报表样式
+	cpdlg.m_listprocess.InsertColumn(0, _T("进程名"), LVCFMT_LEFT, 120);
+	cpdlg.m_listprocess.InsertColumn(1, _T("进程ID"), LVCFMT_LEFT, 60);
+	cpdlg.m_listprocess.InsertColumn(2, _T("进程路径"), LVCFMT_LEFT, 260);
 	
 
+	cpdlg.m_listmodule.SetExtendedStyle(m_list.GetExtendedStyle() | LVS_EX_GRIDLINES);
+	cpdlg.m_listmodule.ModifyStyle(LVS_TYPEMASK, LVS_REPORT);    //报表样式
+	cpdlg.m_listmodule.InsertColumn(0, _T("模块名"), LVCFMT_LEFT, 120);
+	cpdlg.m_listmodule.InsertColumn(1, _T("模块基址"), LVCFMT_LEFT, 120);
+	cpdlg.m_listmodule.InsertColumn(2, _T("模块大小"), LVCFMT_LEFT, 120);
+	cpdlg.m_listmodule.InsertColumn(3, _T("模块句柄"), LVCFMT_LEFT, 120);
+
+	
+	
+
+	//开启检测心跳包线程
+	std::thread thd([&]() {
+		std::vector<SOCKET> vArry;
+		while (1) {
+			for (auto m : m_map) {
+				s_MySession* sSession = m.second;
+				SOCKET  s = m.first;
+				DWORD time = GetTickCount();
+				if (time - sSession->dwLastTickout > HEARBEAT_TIME * 2) {
+					vArry.push_back(s);
+					closesocket(s);
+				}
+			}
+			//用vector, 删除map里的数据
+			if (vArry.size() > 0) {
+				std::lock_guard<std::mutex> lg(m_Acceptmutex);//枷锁
+				for (auto i : vArry) {
+					m_map.erase(i);
+				}
+
+
+
+				//删除界面
+				for (auto i : vArry) {
+					for (int t = 0; t < m_list.GetItemCount(); ++t) {
+						if (i == m_list.GetItemData(t)) {
+							m_list.DeleteItem(t);
+						}
+					}
+				}
+				vArry.clear();
+			}
+			Sleep(HEARBEAT_TIME);
+		}
+	});
+	thd.detach();
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -400,4 +514,22 @@ void CMFC_ServerDlg::OnScreen() {
 	sendScreentcmd();
 	//AfxMessageBox(_T("1"));
 	// TODO:  在此添加命令处理程序代码
+}
+
+
+void CMFC_ServerDlg::OnCheckprocess() {
+	// TODO:  在此添加命令处理程序代码
+	//点击查看进程按钮
+	//
+	SOCKET s = m_list.GetItemData(m_list.GetSelectionMark());//获取选中socket
+	PackHeader PH;
+	PH.type = STOC_PROCESS;
+	PH.length = 0;
+	sendData(s, &PH, sizeof(PackHeader));
+	cpdlg.m_sock = s;
+	cpdlg.m_listprocess.DeleteAllItems();
+	cpdlg.ShowWindow(SW_SHOWNORMAL);
+	cpdlg.m_editpath.SetWindowText(_T("C:\\dll.dll"));
+	
+	
 }
